@@ -36,15 +36,21 @@ def main():
     assert len(from_sketches) == 1, len(from_sketches)
 
     from_ss = from_sketches[0]
-    from_mh = from_ss.minhash.to_mutable()
+    from_mh = from_ss.minhash
+    merged_isect = from_mh.copy_and_clear()
 
-    print('removing...')
+    print('calculating merged intersections...')
     n = 0
     for n, sub_ss in enumerate(db.signatures(), start=1):
         if n and n % 10 == 0:
             print(f"\r\033[K... {n}\r", end="")
         sub_mh = sub_ss.minhash
-        from_mh.remove_many(sub_mh)
+        isect = sub_mh.intersection(from_mh)
+        merged_isect += isect
+
+    print('removing!')
+    from_mh = from_mh.to_mutable()        
+    from_mh.remove_many(merged_isect)
 
     n_orig = len(from_ss.minhash)
     n_remaining = len(from_mh)
