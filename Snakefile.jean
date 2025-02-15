@@ -1,0 +1,44 @@
+rule all:
+    input:
+        "SRR4420318.round2.k21.csv",
+        "SRR9182861.round2.k21.csv",
+
+# profile against GTDB
+rule gather_round2:
+    input:
+        q="{acc}.round1.k{ksize}.sig.zip",
+        database="/group/ctbrowngrp/sourmash-db/gtdb-rs220/gtdb-rs220-k{ksize}.zip",
+    output:
+        "{acc}.round2.k{ksize}.csv",
+    shell: """
+        sourmash scripts fastmultigather {input.q} {input.database} -o {output} -t 0 -k {wildcards.ksize}
+    """
+
+# subtract eukaryote matches at k=21
+rule sub_round1:
+    input:
+        metag="{acc}.sig",
+        database="/group/ctbrowngrp/sourmash-db/genbank-euks-2024.01/eukaryotes.mf.csv",
+        picklist="{acc}.round1.k51.csv",
+        script="./sub.py",
+    output:
+        "{acc}.round1.k{ksize}.sig.zip",
+    params:
+        scaled=10_000
+    shell: """
+        {input.script} {input.metag} {input.database} --picklist {input.picklist}:match_name:ident -k {wildcards.ksize} -o {output} -s {params.scaled}
+    """
+
+# search against euks at k=21
+# CTB: maybe this should be a prefetch?
+rule gather_round1:
+    input:
+        metag="{acc}.sig",
+        database="/group/ctbrowngrp5/sourmash-db/entire-2025-01-21/entire-2025-01-21.k{ksize}.rocksdb",
+    output:
+        "{acc}.round1.k{ksize}.csv"
+    threads: 64
+    shell: """
+        sourmash scripts fastmultigather {input.metag} {input.database} -o {output} \
+           -k {wildcards.ksize} -t 0 -c {threads}
+    """

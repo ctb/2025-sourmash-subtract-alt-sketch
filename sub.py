@@ -15,6 +15,8 @@ def main():
                    help='subtract at this moltype')
     p.add_argument('-k', '--ksize', default=31, type=int,
                    help='subtract at this ksize')
+    p.add_argument('-s', '--scaled', default=1000, type=float,
+                   help='downsample to this scaled before subtracting')
     p.add_argument('-o', '--output-sketches', help='save sketches here',
                    required=True)
     add_picklist_args(p)
@@ -36,16 +38,17 @@ def main():
     assert len(from_sketches) == 1, len(from_sketches)
 
     from_ss = from_sketches[0]
-    from_mh = from_ss.minhash
-    merged_isect = from_mh.copy_and_clear()
+    from_mh = from_ss.minhash.downsample(scaled=args.scaled)
+    from_mh_flat = from_mh.flatten()
+    merged_isect = from_mh_flat.copy_and_clear()
 
     print('calculating merged intersections...')
     n = 0
     for n, sub_ss in enumerate(db.signatures(), start=1):
         if n and n % 10 == 0:
-            print(f"\r\033[K... {n}\r", end="")
-        sub_mh = sub_ss.minhash
-        isect = sub_mh.intersection(from_mh)
+            print(f"\r\033[K... {n} of {len(db)}\r", end="")
+        sub_mh = sub_ss.minhash.flatten().downsample(scaled=from_mh.scaled)
+        isect = sub_mh.intersection(from_mh_flat)
         merged_isect += isect
 
     print('removing!')
